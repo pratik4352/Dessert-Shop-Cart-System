@@ -578,19 +578,74 @@
 
     clearCartBtn.addEventListener('click', clearCart);
 
-    confirmOrderBtn.addEventListener('click', () => {
-      if (cart.size === 0) return;
-      modal.classList.add('active');
-    });
+    let lastFocusedElement = null;
 
-    modalCloseBtn.addEventListener('click', () => {
+    const focusableSelectors = 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    function getModalFocusable() {
+      return Array.from(modal.querySelectorAll(focusableSelectors)).filter((el) => !el.hasAttribute('disabled'));
+    }
+
+    function trapFocus(event) {
+      if (event.key !== 'Tab') return;
+      const focusable = getModalFocusable();
+      if (!focusable.length) return;
+
+      const firstEl = focusable[0];
+      const lastEl = focusable[focusable.length - 1];
+      const isShift = event.shiftKey;
+
+      if (!modal.contains(document.activeElement)) {
+        event.preventDefault();
+        firstEl.focus();
+        return;
+      }
+
+      if (!isShift && document.activeElement === lastEl) {
+        event.preventDefault();
+        firstEl.focus();
+      } else if (isShift && document.activeElement === firstEl) {
+        event.preventDefault();
+        lastEl.focus();
+      }
+    }
+
+    function closeModal() {
       modal.classList.remove('active');
+      window.removeEventListener('keydown', onModalKeyDown);
+      if (lastFocusedElement) {
+        lastFocusedElement.focus();
+        lastFocusedElement = null;
+      }
       clearCart();
-    });
+    }
+
+    function onModalKeyDown(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeModal();
+        return;
+      }
+      trapFocus(event);
+    }
+
+    function openModal() {
+      if (cart.size === 0) return;
+      lastFocusedElement = document.activeElement;
+      modal.classList.add('active');
+      window.addEventListener('keydown', onModalKeyDown);
+
+      const focusable = getModalFocusable();
+      if (focusable.length) {
+        focusable[0].focus();
+      }
+    }
+
+    confirmOrderBtn.addEventListener('click', openModal);
+    modalCloseBtn.addEventListener('click', closeModal);
 
     window.addEventListener('click', (event) => {
       if (event.target === modal) {
-        modal.classList.remove('active');
+        closeModal();
       }
     });
 
